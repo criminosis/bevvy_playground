@@ -27,32 +27,49 @@ impl Plugin for HelloPlugin {
     }
 }
 
+//Basic for-each system - not resources requested
+
+// fn greet_people(_person: &Person, name: &Name) {
+//     println!("hello {}!", name.0);
+// }
+
 //In comparison to its prior form this method takes in a Time Resource a kind of "global" state value that we will use to meter when
 //it's time to print another hello message (whereas without it we were printing at the speed of the CPU)
 //Notes from docs:
 //Res and ResMut pointers provide read and write access (respectively) to resources.
 //Note that resources must come before components or your function will not be convertible to a System.
 //Time (as in Res<Time>) comes from the default plugins' Time Resource
-fn greet_people(time: Res<Time>, mut timer: ResMut<GreetTimer>, _person: &Person, name: &Name) {
-    // update our timer with the time elapsed since the last update
+
+// fn greet_people(time: Res<Time>, mut timer: ResMut<GreetTimer>, _person: &Person, name: &Name) {
+//     //This would be called a "for-each" system - it runs for each entity that matches the specified components
+//     // update our timer with the time elapsed since the last update
+//     timer.0.tick(time.delta_seconds);
+//     // check to see if the timer has finished. if it has, print our message
+//     if timer.0.finished {
+//         println!("hello {}!", name.0);
+//     }
+//     //^ this has a bug. greet_people is ran for each entities that has person and name but only the entity that is being evaluated at the
+//     //crossover of the timer is getting greated, not the others. "Queries" solve this.
+// }
+
+//A "query" system that will apply the given action upon its query result in batch
+//Res<Time> gives us access to time as a global resource
+//ResMut<GreetTimer> gives us an accumulator of delta time to determine when we've accumulated enough
+//Query<(&Person, &Name)> is the query that needs to be executed to find all relevant Entities having the specified components to then operate upon
+fn greet_people(
+    time: Res<Time>, mut timer: ResMut<GreetTimer>, mut query: Query<(&Person, &Name)>) {
     timer.0.tick(time.delta_seconds);
-
-    // check to see if the timer has finished. if it has, print our message
     if timer.0.finished {
-        println!("hello {}!", name.0);
+        for (_person, name) in &mut query.iter() {
+            //can also use With<Component> and Without<Component> to narrow down / branch within the given query
+            println!("hello {}!", name.0);
+        }
     }
-
-    //^ this has a bug. greet_people is ran for each entities that has person and name but only the entity that is being evaluated at the
-    //crossover of the timer is getting greated, not the others. "Queries" solve this.
 }
 
 //A component to hold a timer interval that will accumulate delta time and indicate when it is time to fire off again
 //This needs to be a distinct type so it is can be refenced as a unique type for Resource consumption
 struct GreetTimer(Timer);
-
-// fn greet_people(_person: &Person, name: &Name) {
-//     println!("hello {}!", name.0);
-// }
 
 //A person component
 struct Person;
