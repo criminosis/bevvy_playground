@@ -16,6 +16,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: Install latest stable
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            components: rustfmt, clippy
     - name: Clippy Linting
     # --all-targets means apply to test code too. Without it just applies to application code
       run: cargo clippy --all-targets -- -D warnings
