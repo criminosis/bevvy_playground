@@ -57,7 +57,10 @@ impl Plugin for HelloPlugin {
 //ResMut<GreetTimer> gives us an accumulator of delta time to determine when we've accumulated enough
 //Query<(&Person, &Name)> is the query that needs to be executed to find all relevant Entities having the specified components to then operate upon
 fn greet_people(
-    time: Res<Time>, mut timer: ResMut<GreetTimer>, mut query: Query<(&Person, &Name)>) {
+    time: Res<Time>,
+    mut timer: ResMut<GreetTimer>,
+    mut query: Query<(&Person, &Name)>,
+) {
     timer.0.tick(time.delta_seconds);
     if timer.0.finished {
         for (_person, name) in &mut query.iter() {
