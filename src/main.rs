@@ -4,12 +4,24 @@ fn main() {
     //Being able to turn a method into a system is done via "trait extension"
     //http://xion.io/post/code/rust-extension-traits.html
     App::build()
-        //Startup System is only ran once - at startup
-        .add_startup_system(add_people.system())
-        //normal systems run continuously once looped?
-        .add_system(greet_people.system())
-        .add_system(hello_world.system())
+        //adds default things like Windowing, Input Controls, and Core Plugin (an event loop)
+        .add_default_plugins()
+        .add_plugin(HelloPlugin)
         .run();
+}
+
+//Plugins represent the unit of modularity into Brevvy, portions of functionality that can be assembled together (or sliced out and replaced)
+//This is demonstrating moving our hello logic into such a plugin
+pub struct HelloPlugin;
+
+impl Plugin for HelloPlugin {
+    fn build(&self, app: &mut AppBuilder) {
+        //Startup System is only ran once - at startup
+        app.add_startup_system(add_people.system())
+            //normal systems run continuously once event looped?
+            .add_system(hello_world.system())
+            .add_system(greet_people.system());
+    }
 }
 
 fn hello_world() {
