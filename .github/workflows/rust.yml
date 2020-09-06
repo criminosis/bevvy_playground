@@ -15,9 +15,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Install libasound2-dev
-      # needed for dependency alsa-sys otherwise fails with "failed to run custom build command for `alsa-sys v0.1.2`"
-      run: sudo apt install libasound2-dev
     - uses: actions/checkout@v2
     - name: Install minimal stable with clippy and rustfmt
       uses: actions-rs/toolchain@v1
@@ -28,6 +25,9 @@ jobs:
     - name: Format Check
       #run cargo fmt to fix if in violation
       run: cargo fmt -- --check
+    - name: Install libasound2-dev
+      # needed for dependency alsa-sys otherwise fails with "failed to run custom build command for `alsa-sys v0.1.2`"
+      run: sudo apt install libasound2-dev
     - name: Build
       run: cargo build --verbose
     - name: Run tests
