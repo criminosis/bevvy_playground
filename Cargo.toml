@@ -1,5 +1,5 @@
 [package]
-name = "bevvy_playground"
+name = "bevy_playground"
 version = "0.1.0"
 authors = ["Allan Clements"]
 edition = "2018"
