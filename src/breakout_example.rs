@@ -35,8 +35,8 @@ pub fn run() {
         .add_default_plugins()
         //Scoreboard state
         .add_resource(Scoreboard { score: 0 })
-        //Kind of a silvery color -- Not entirely sure why it's getting set as the background color though
-        //Just guessing this is how "ClearColor" resources are rendered akin to a 2D "skybox"?
+        //Kind of a silvery color -- ClearColor resources are the background color of the window
+        //https://github.com/jamadazi/bevy-cheatsheet/blob/master/bevy-cheatsheet.md#configuration-resources
         .add_resource(ClearColor(Color::rgb(0.7, 0.7, 0.7)))
         .add_startup_system(setup.system())
         .add_system(paddle_movement_system.system())

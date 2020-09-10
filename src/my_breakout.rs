@@ -38,8 +38,8 @@ pub fn run() {
         .add_default_plugins()
         //Scoreboard state
         .add_resource(Scoreboard { score: 0 })
-        //Kind of a silvery color -- Not entirely sure why it's getting set as the background color though
-        //Just guessing this is how "ClearColor" resources are rendered akin to a 2D "skybox"?
+        //Kind of a silvery color -- ClearColor resources are the background color of the window
+        //https://github.com/jamadazi/bevy-cheatsheet/blob/master/bevy-cheatsheet.md#configuration-resources
         .add_resource(ClearColor(Color::rgb(0.7, 0.7, 0.7)))
         .add_startup_system(setup.system())
         .add_system(paddle_movement_system.system())
@@ -64,6 +64,10 @@ struct Scoreboard {
 enum Collider {
     Solid,
     Scorable,
+}
+
+struct BreakSound {
+    asset: Handle<AudioSource>,
 }
 
 fn setup(
@@ -211,6 +215,10 @@ fn setup(
                 .with(Collider::Scorable);
         }
     }
+
+    //load the audio file
+    let break_sound = asset_server.load("assets/sounds/break.mp3").unwrap();
+    commands.insert_resource(BreakSound { asset: break_sound });
 }
 
 fn paddle_movement_system(
@@ -253,9 +261,12 @@ fn scoreboard_system(scoreboard: Res<Scoreboard>, mut query: Query<&mut Text>) {
 //So take in the scoreboard resource (so we can increment the score if needed)
 //query for the ball (though if we don't care to do anything on a batch of balls, why query instead of pass in?)
 //then do a query for all the colliders in the game and check for collisions
+//TODO when we improve the collision with the physics plugin it seems like we should be sending an event to fire off the sound
 fn ball_collision_system(
     mut commands: Commands,
     mut scoreboard: ResMut<Scoreboard>,
+    audio_output: Res<AudioOutput>,
+    break_sound: Res<BreakSound>, //TODO this seems like it's going to do an additional for each for each break_out resource?
     mut ball_query: Query<(&mut Ball, &Translation, &Sprite)>,
     mut collider_query: Query<(Entity, &Collider, &Translation, &Sprite)>,
 ) {
@@ -271,6 +282,11 @@ fn ball_collision_system(
                 if let Collider::Scorable = *collider {
                     scoreboard.score += 1;
                     commands.despawn(collider_entity);
+
+                    //https://github.com/RustAudio/rodio/issues/229
+                    //Looks like playing mp3 on Windows can panic and kill the audio library if running a debug build
+
+                    audio_output.play(break_sound.asset);
                 }
 
                 // reflect the ball when it collides
