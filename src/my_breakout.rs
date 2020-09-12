@@ -2,12 +2,11 @@
 
 /*
 Things to try out
-  - Make a sound play when a bar is broken https://freesound.org/browse/
-    - And maybe a long playing audio track? https://www.zapsplat.com/
-  - A pause screen to free the game
-  - Make the ball go faster when it breaks a bar (Event for when a bar is removed or the despawning fires off an event?)
+  - [Done] Make a sound play when a bar is broken https://freesound.org/browse/
+  - [Done] Make the ball go faster when it breaks a bar (Event for when a bar is removed or the despawning fires off an event?)
   - +/- to make the ball go faster/slower (interesting to see if having to how holding down shift is represented if at all
   - Pressing a button spawns another ball
+  - A pause screen to freeze the game
   - A restart button
   - A start screen for when the game starts instead of immediately starting as soon as launched
   - "You win" after all bars are broken
@@ -17,6 +16,10 @@ Things to try out
   - Replace the collide method to using bevy_rapier (https://github.com/dimforge/bevy_rapier / https://rapier.rs/docs/) a physics plugin
       - https://rapier.rs/docs/user_guides/rust_bevy_plugin/getting_started
   - Saving game state from pause screen (and having a load save file file picker?)
+  - Background music? https://www.zapsplat.com/
+  - Improvement: seems like we're loading this on the main thread despite being told asset server loads it async?
+  - Improvement: seems our translation logic can move the ball outside the bounds, we should be clamping the translation to being no further than the wall
+
 */
 
 use bevy::{
@@ -24,6 +27,8 @@ use bevy::{
     render::pass::ClearColor,
     sprite::collide_aabb::{collide, Collision},
 };
+
+use crate::vec3_extension::*;
 
 /// An implementation of the classic game "Breakout"
 pub fn run() {
@@ -287,6 +292,9 @@ fn ball_collision_system(
                     //Looks like playing mp3 on Windows can panic and kill the audio library if running a debug build
 
                     audio_output.play(break_sound.asset);
+
+                    //We've broken a bar so speed up the ball
+                    velocity.scalar_multiply(1.05);
                 }
 
                 // reflect the ball when it collides
