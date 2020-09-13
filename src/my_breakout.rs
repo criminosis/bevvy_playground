@@ -18,7 +18,9 @@ Things to try out
   - Saving game state from pause screen (and having a load save file file picker?)
   - Background music? https://www.zapsplat.com/
   - Improvement: seems like we're loading this on the main thread despite being told asset server loads it async?
-  - Improvement: seems our translation logic can move the ball outside the bounds, we should be clamping the translation to being no further than the wall
+  - [Done]Improvement: seems our translation logic can move the ball outside the bounds, we should be clamping the translation to being no further than the wall
+  - Given enough speed it seems our ball can "teleport" through our paddle because we are only clamping to the boundaries but not checking if we skip through our paddled.
+      we should be checking to see if the paddle is in our path, and if so move to our contact point so that we can bounce off it
 
 */
 
@@ -28,7 +30,10 @@ use bevy::{
     sprite::collide_aabb::{collide, Collision},
 };
 
-use crate::vec3_extension::*;
+//use crate::vec3_extension::*;
+
+const BOUNDS: (f32, f32) = (900.0 / 2.0, 600.0 / 2.0);
+const WALL_THICKNESS: f32 = 10.0;
 
 /// An implementation of the classic game "Breakout"
 pub fn run() {
@@ -147,7 +152,6 @@ fn setup(
 
     // Add walls
     let wall_material = materials.add(Color::rgb(0.5, 0.5, 0.5).into());
-    let wall_thickness = 10.0;
     let bounds = Vec2::new(900.0, 600.0);
 
     commands
@@ -156,7 +160,7 @@ fn setup(
             material: wall_material,
             translation: Translation(Vec3::new(-bounds.x() / 2.0, 0.0, 0.0)),
             sprite: Sprite {
-                size: Vec2::new(wall_thickness, bounds.y() + wall_thickness),
+                size: Vec2::new(WALL_THICKNESS, bounds.y() + WALL_THICKNESS),
             },
             ..Default::default()
         })
@@ -166,7 +170,7 @@ fn setup(
             material: wall_material,
             translation: Translation(Vec3::new(bounds.x() / 2.0, 0.0, 0.0)),
             sprite: Sprite {
-                size: Vec2::new(wall_thickness, bounds.y() + wall_thickness),
+                size: Vec2::new(WALL_THICKNESS, bounds.y() + WALL_THICKNESS),
             },
             ..Default::default()
         })
@@ -176,7 +180,7 @@ fn setup(
             material: wall_material,
             translation: Translation(Vec3::new(0.0, -bounds.y() / 2.0, 0.0)),
             sprite: Sprite {
-                size: Vec2::new(bounds.x() + wall_thickness, wall_thickness),
+                size: Vec2::new(bounds.x() + WALL_THICKNESS, WALL_THICKNESS),
             },
             ..Default::default()
         })
@@ -186,7 +190,7 @@ fn setup(
             material: wall_material,
             translation: Translation(Vec3::new(0.0, bounds.y() / 2.0, 0.0)),
             sprite: Sprite {
-                size: Vec2::new(bounds.x() + wall_thickness, wall_thickness),
+                size: Vec2::new(bounds.x() + WALL_THICKNESS, WALL_THICKNESS),
             },
             ..Default::default()
         })
@@ -229,9 +233,9 @@ fn setup(
 fn paddle_movement_system(
     time: Res<Time>,
     keyboard_input: Res<Input<KeyCode>>,
-    mut query: Query<(&Paddle, &mut Translation)>,
+    mut query: Query<(&Paddle, &mut Translation, &Sprite)>,
 ) {
-    for (paddle, mut translation) in &mut query.iter() {
+    for (paddle, mut translation, sprite) in &mut query.iter() {
         let mut direction = 0.0;
         if keyboard_input.pressed(KeyCode::Left) {
             direction -= 1.0;
@@ -244,16 +248,35 @@ fn paddle_movement_system(
         *translation.0.x_mut() += time.delta_seconds * direction * paddle.speed;
 
         // bound the paddle within the walls
-        *translation.0.x_mut() = f32::max(-380.0, f32::min(380.0, translation.0.x()));
+        clamp_movement_within_bounds(&sprite.size, &mut translation);
     }
 }
 
-fn ball_movement_system(time: Res<Time>, mut ball_query: Query<(&Ball, &mut Translation)>) {
+fn clamp_movement_within_bounds(sprite_size: &Vec2, translation: &mut Mut<Translation>) {
+    //TODO make bound calculations a constant left/right/bottom/top bounds
+    let sprite_width = sprite_size.x() / 2.0;
+    let sprite_height = sprite_size.y() / 2.0;
+    *translation.0.x_mut() = f32::max(
+        BOUNDS.0 * -1.0 + sprite_width,
+        f32::min(BOUNDS.0 - sprite_width, translation.0.x()),
+    );
+    *translation.0.y_mut() = f32::max(
+        BOUNDS.1 * -1.0 + sprite_height,
+        f32::min(BOUNDS.1 - sprite_height, translation.0.y()),
+    );
+}
+
+fn ball_movement_system(
+    time: Res<Time>,
+    mut ball_query: Query<(&Ball, &mut Translation, &Sprite)>,
+) {
     // clamp the timestep to stop the ball from escaping when the game starts
     let delta_seconds = f32::min(0.2, time.delta_seconds);
 
-    for (ball, mut translation) in &mut ball_query.iter() {
+    for (ball, mut translation, sprite) in &mut ball_query.iter() {
         translation.0 += ball.velocity * delta_seconds;
+        // bound the ball within the walls
+        clamp_movement_within_bounds(&sprite.size, &mut translation);
     }
 }
 
@@ -294,7 +317,7 @@ fn ball_collision_system(
                     audio_output.play(break_sound.asset);
 
                     //We've broken a bar so speed up the ball
-                    velocity.scalar_multiply(1.05);
+                    *velocity *= 1.05;
                 }
 
                 // reflect the ball when it collides
@@ -316,11 +339,43 @@ fn ball_collision_system(
 
                 // reflect velocity on the y-axis if we hit something on the y-axis
                 if reflect_y {
-                    *velocity.y_mut() = -velocity.y();
+                    negate_y(velocity);
                 }
 
                 break;
             }
+
+
+            //The collision logic only considers rectangle intersection not contact so consider contact here
+            let a_pos = ball_translation.0;
+            let a_size = ball_size;
+            let b_pos = translation.0;
+            let b_size = sprite.size;
+
+            let a_min = a_pos.truncate() - a_size / 2.0;
+            let a_max = a_pos.truncate() + a_size / 2.0;
+
+            let b_min = b_pos.truncate() - b_size / 2.0;
+            let b_max = b_pos.truncate() + b_size / 2.0;
+
+            // check to see if the two rectangles are touching
+            if a_max.y() == b_max.y() || a_min.y() == b_min.y() {
+                //we've touched the top or bottom so reflect y
+                negate_y(velocity);
+            }
+
+            if a_max.x() == b_max.x() || a_min.x() == b_min.x() {
+                //we've touched the left or right so reflect x
+                negate_x(velocity);
+            }
         }
     }
+}
+
+fn negate_y(to_reflect: &mut Vec3) {
+    *to_reflect.y_mut() = -to_reflect.y();
+}
+
+fn negate_x(to_reflect: &mut Vec3) {
+    *to_reflect.x_mut() = -to_reflect.x();
 }
