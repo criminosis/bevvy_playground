@@ -233,25 +233,20 @@ fn paddle_movement_system(
             direction += 1.0;
         }
 
-        *transform.translation().x_mut() += time.delta_seconds * direction * paddle.speed;
+        *transform.translation_mut().x_mut() += time.delta_seconds * direction * paddle.speed;
 
         // bound the paddle within the walls
         clamp_movement_within_bounds(&sprite.size, &mut transform);
     }
 }
 
-fn clamp_movement_within_bounds(sprite_size: &Vec2, translation: &mut Mut<Transform>) {
+fn clamp_movement_within_bounds(sprite_size: &Vec2, transform: &mut Mut<Transform>) {
     //TODO make bound calculations a constant left/right/bottom/top bounds
     let sprite_width = sprite_size.x() / 2.0;
     let sprite_height = sprite_size.y() / 2.0;
-    *translation.translation().x_mut() = f32::max(
-        BOUNDS.0 * -1.0 + sprite_width,
-        f32::min(BOUNDS.0 - sprite_width, translation.translation().x()),
-    );
-    *translation.translation().y_mut() = f32::max(
-        BOUNDS.1 * -1.0 + sprite_height,
-        f32::min(BOUNDS.1 - sprite_height, translation.translation().y()),
-    );
+    let translation = transform.translation_mut();
+    *translation.x_mut() = translation.x().min(BOUNDS.0 - sprite_width).max(BOUNDS.0 * -1.0 + sprite_width);
+    *translation.y_mut() = translation.y().min(BOUNDS.1 - sprite_height).max(BOUNDS.1 * -1.0 + sprite_height);
 }
 
 fn ball_movement_system(

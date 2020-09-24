@@ -7,6 +7,5 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-#While geenerally not a good practice to depend on a commit instead of releases this commit is right after the 0.2.0
-#release that removes some unintended debug printing in the framework
-bevy = { git = "https://github.com/bevyengine/bevy", rev = "924afc3c0c8b511fd190b5adad68f10fe26149ac" }
+#While geenerally not a good practice to depend on a commit instead of releases we're wanting to stay on the leading edge of the framework
+bevy = { git = "https://github.com/bevyengine/bevy", rev = "a768bae33b9902475d5b50326751b26e10ed36cf" }
