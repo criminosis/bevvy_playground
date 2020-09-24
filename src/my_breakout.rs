@@ -349,7 +349,7 @@ fn ball_collision_system(
             let b_max = b_pos.truncate() + b_size / 2.0;
 
             // check to see if the two rectangles are touching
-            if (a_max.y() - b_max.y()).abs() < 0.5  || (a_min.y() - b_min.y()).abs() < 0.5 {
+            if (a_max.y() - b_max.y()).abs() < 0.5 || (a_min.y() - b_min.y()).abs() < 0.5 {
                 //we've touched the top or bottom so reflect y
                 negate_y(velocity);
             }
