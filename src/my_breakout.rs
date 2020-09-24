@@ -107,10 +107,8 @@ fn setup(
         // paddle
         .spawn(SpriteComponents {
             material: materials.add(Color::rgb(0.2, 0.2, 0.8).into()),
-            translation: Translation(Vec3::new(0.0, -215.0, 0.0)),
-            sprite: Sprite {
-                size: Vec2::new(120.0, 30.0),
-            },
+            transform: Transform::from_translation(Vec3::new(0.0, -215.0, 0.0)),
+            sprite: Sprite::new(Vec2::new(120.0, 30.0)),
             //Looks like this is inserting the default values for SpriteComponents that wasn't set
             ..Default::default()
         })
@@ -119,10 +117,8 @@ fn setup(
         // ball
         .spawn(SpriteComponents {
             material: materials.add(Color::rgb(0.8, 0.2, 0.2).into()),
-            translation: Translation(Vec3::new(0.0, -50.0, 1.0)),
-            sprite: Sprite {
-                size: Vec2::new(30.0, 30.0),
-            },
+            transform: Transform::from_translation(Vec3::new(0.0, -50.0, 1.0)),
+            sprite: Sprite::new(Vec2::new(30.0, 30.0)),
             ..Default::default()
         })
         .with(Ball {
@@ -158,40 +154,32 @@ fn setup(
         // left
         .spawn(SpriteComponents {
             material: wall_material,
-            translation: Translation(Vec3::new(-bounds.x() / 2.0, 0.0, 0.0)),
-            sprite: Sprite {
-                size: Vec2::new(WALL_THICKNESS, bounds.y() + WALL_THICKNESS),
-            },
+            transform: Transform::from_translation(Vec3::new(-bounds.x() / 2.0, 0.0, 0.0)),
+            sprite: Sprite::new(Vec2::new(WALL_THICKNESS, bounds.y() + WALL_THICKNESS)),
             ..Default::default()
         })
         .with(Collider::Solid)
         // right
         .spawn(SpriteComponents {
             material: wall_material,
-            translation: Translation(Vec3::new(bounds.x() / 2.0, 0.0, 0.0)),
-            sprite: Sprite {
-                size: Vec2::new(WALL_THICKNESS, bounds.y() + WALL_THICKNESS),
-            },
+            transform: Transform::from_translation(Vec3::new(bounds.x() / 2.0, 0.0, 0.0)),
+            sprite: Sprite::new(Vec2::new(WALL_THICKNESS, bounds.y() + WALL_THICKNESS)),
             ..Default::default()
         })
         .with(Collider::Solid)
         // bottom
         .spawn(SpriteComponents {
             material: wall_material,
-            translation: Translation(Vec3::new(0.0, -bounds.y() / 2.0, 0.0)),
-            sprite: Sprite {
-                size: Vec2::new(bounds.x() + WALL_THICKNESS, WALL_THICKNESS),
-            },
+            transform: Transform::from_translation(Vec3::new(0.0, -bounds.y() / 2.0, 0.0)),
+            sprite: Sprite::new(Vec2::new(bounds.x() + WALL_THICKNESS, WALL_THICKNESS)),
             ..Default::default()
         })
         .with(Collider::Solid)
         // top
         .spawn(SpriteComponents {
             material: wall_material,
-            translation: Translation(Vec3::new(0.0, bounds.y() / 2.0, 0.0)),
-            sprite: Sprite {
-                size: Vec2::new(bounds.x() + WALL_THICKNESS, WALL_THICKNESS),
-            },
+            transform: Transform::from_translation(Vec3::new(0.0, bounds.y() / 2.0, 0.0)),
+            sprite: Sprite::new(Vec2::new(bounds.x() + WALL_THICKNESS, WALL_THICKNESS)),
             ..Default::default()
         })
         .with(Collider::Solid);
@@ -217,8 +205,8 @@ fn setup(
                 // brick
                 .spawn(SpriteComponents {
                     material: materials.add(Color::rgb(0.2, 0.2, 0.8).into()),
-                    sprite: Sprite { size: brick_size },
-                    translation: Translation(brick_position),
+                    sprite: Sprite::new(brick_size),
+                    transform: Transform::from_translation(brick_position),
                     ..Default::default()
                 })
                 .with(Collider::Scorable);
@@ -233,9 +221,9 @@ fn setup(
 fn paddle_movement_system(
     time: Res<Time>,
     keyboard_input: Res<Input<KeyCode>>,
-    mut query: Query<(&Paddle, &mut Translation, &Sprite)>,
+    mut query: Query<(&Paddle, &mut Transform, &Sprite)>,
 ) {
-    for (paddle, mut translation, sprite) in &mut query.iter() {
+    for (paddle, mut transform, sprite) in &mut query.iter() {
         let mut direction = 0.0;
         if keyboard_input.pressed(KeyCode::Left) {
             direction -= 1.0;
@@ -245,38 +233,36 @@ fn paddle_movement_system(
             direction += 1.0;
         }
 
-        *translation.0.x_mut() += time.delta_seconds * direction * paddle.speed;
+        *transform.translation_mut().x_mut() += time.delta_seconds * direction * paddle.speed;
 
         // bound the paddle within the walls
-        clamp_movement_within_bounds(&sprite.size, &mut translation);
+        clamp_movement_within_bounds(&sprite.size, &mut transform);
     }
 }
 
-fn clamp_movement_within_bounds(sprite_size: &Vec2, translation: &mut Mut<Translation>) {
+fn clamp_movement_within_bounds(sprite_size: &Vec2, transform: &mut Mut<Transform>) {
     //TODO make bound calculations a constant left/right/bottom/top bounds
     let sprite_width = sprite_size.x() / 2.0;
     let sprite_height = sprite_size.y() / 2.0;
-    *translation.0.x_mut() = f32::max(
-        BOUNDS.0 * -1.0 + sprite_width,
-        f32::min(BOUNDS.0 - sprite_width, translation.0.x()),
-    );
-    *translation.0.y_mut() = f32::max(
-        BOUNDS.1 * -1.0 + sprite_height,
-        f32::min(BOUNDS.1 - sprite_height, translation.0.y()),
-    );
+    let translation = transform.translation_mut();
+    *translation.x_mut() = translation
+        .x()
+        .min(BOUNDS.0 - sprite_width)
+        .max(BOUNDS.0 * -1.0 + sprite_width);
+    *translation.y_mut() = translation
+        .y()
+        .min(BOUNDS.1 - sprite_height)
+        .max(BOUNDS.1 * -1.0 + sprite_height);
 }
 
-fn ball_movement_system(
-    time: Res<Time>,
-    mut ball_query: Query<(&Ball, &mut Translation, &Sprite)>,
-) {
+fn ball_movement_system(time: Res<Time>, mut ball_query: Query<(&Ball, &mut Transform, &Sprite)>) {
     // clamp the timestep to stop the ball from escaping when the game starts
     let delta_seconds = f32::min(0.2, time.delta_seconds);
 
-    for (ball, mut translation, sprite) in &mut ball_query.iter() {
-        translation.0 += ball.velocity * delta_seconds;
+    for (ball, mut transform, sprite) in &mut ball_query.iter() {
+        transform.translate(ball.velocity * delta_seconds);
         // bound the ball within the walls
-        clamp_movement_within_bounds(&sprite.size, &mut translation);
+        clamp_movement_within_bounds(&sprite.size, &mut transform);
     }
 }
 
@@ -295,16 +281,21 @@ fn ball_collision_system(
     mut scoreboard: ResMut<Scoreboard>,
     audio_output: Res<AudioOutput>,
     break_sound: Res<BreakSound>, //TODO this seems like it's going to do an additional for each for each break_out resource?
-    mut ball_query: Query<(&mut Ball, &Translation, &Sprite)>,
-    mut collider_query: Query<(Entity, &Collider, &Translation, &Sprite)>,
+    mut ball_query: Query<(&mut Ball, &Transform, &Sprite)>,
+    mut collider_query: Query<(Entity, &Collider, &Transform, &Sprite)>,
 ) {
-    for (mut ball, ball_translation, sprite) in &mut ball_query.iter() {
+    for (mut ball, ball_transform, sprite) in &mut ball_query.iter() {
         let ball_size = sprite.size;
         let velocity = &mut ball.velocity;
 
         // check collision with walls
-        for (collider_entity, collider, translation, sprite) in &mut collider_query.iter() {
-            let collision = collide(ball_translation.0, ball_size, translation.0, sprite.size);
+        for (collider_entity, collider, transform, sprite) in &mut collider_query.iter() {
+            let collision = collide(
+                ball_transform.translation(),
+                ball_size,
+                transform.translation(),
+                sprite.size,
+            );
             if let Some(collision) = collision {
                 // scorable colliders should be despawned and increment the scoreboard on collision
                 if let Collider::Scorable = *collider {
@@ -345,11 +336,10 @@ fn ball_collision_system(
                 break;
             }
 
-
             //The collision logic only considers rectangle intersection not contact so consider contact here
-            let a_pos = ball_translation.0;
+            let a_pos = ball_transform.translation();
             let a_size = ball_size;
-            let b_pos = translation.0;
+            let b_pos = transform.translation();
             let b_size = sprite.size;
 
             let a_min = a_pos.truncate() - a_size / 2.0;
@@ -359,12 +349,12 @@ fn ball_collision_system(
             let b_max = b_pos.truncate() + b_size / 2.0;
 
             // check to see if the two rectangles are touching
-            if a_max.y() == b_max.y() || a_min.y() == b_min.y() {
+            if (a_max.y() - b_max.y()).abs() < 0.5 || (a_min.y() - b_min.y()).abs() < 0.5 {
                 //we've touched the top or bottom so reflect y
                 negate_y(velocity);
             }
 
-            if a_max.x() == b_max.x() || a_min.x() == b_min.x() {
+            if (a_max.x() - b_max.x()).abs() < 0.5 || (a_min.x() - b_min.x()).abs() < 0.5 {
                 //we've touched the left or right so reflect x
                 negate_x(velocity);
             }
