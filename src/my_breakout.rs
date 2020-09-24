@@ -245,19 +245,22 @@ fn clamp_movement_within_bounds(sprite_size: &Vec2, transform: &mut Mut<Transfor
     let sprite_width = sprite_size.x() / 2.0;
     let sprite_height = sprite_size.y() / 2.0;
     let translation = transform.translation_mut();
-    *translation.x_mut() = translation.x().min(BOUNDS.0 - sprite_width).max(BOUNDS.0 * -1.0 + sprite_width);
-    *translation.y_mut() = translation.y().min(BOUNDS.1 - sprite_height).max(BOUNDS.1 * -1.0 + sprite_height);
+    *translation.x_mut() = translation
+        .x()
+        .min(BOUNDS.0 - sprite_width)
+        .max(BOUNDS.0 * -1.0 + sprite_width);
+    *translation.y_mut() = translation
+        .y()
+        .min(BOUNDS.1 - sprite_height)
+        .max(BOUNDS.1 * -1.0 + sprite_height);
 }
 
-fn ball_movement_system(
-    time: Res<Time>,
-    mut ball_query: Query<(&Ball, &mut Transform, &Sprite)>,
-) {
+fn ball_movement_system(time: Res<Time>, mut ball_query: Query<(&Ball, &mut Transform, &Sprite)>) {
     // clamp the timestep to stop the ball from escaping when the game starts
     let delta_seconds = f32::min(0.2, time.delta_seconds);
 
     for (ball, mut transform, sprite) in &mut ball_query.iter() {
-        transform.translate (ball.velocity * delta_seconds);
+        transform.translate(ball.velocity * delta_seconds);
         // bound the ball within the walls
         clamp_movement_within_bounds(&sprite.size, &mut transform);
     }
@@ -287,7 +290,12 @@ fn ball_collision_system(
 
         // check collision with walls
         for (collider_entity, collider, transform, sprite) in &mut collider_query.iter() {
-            let collision = collide(ball_transform.translation(), ball_size, transform.translation(), sprite.size);
+            let collision = collide(
+                ball_transform.translation(),
+                ball_size,
+                transform.translation(),
+                sprite.size,
+            );
             if let Some(collision) = collision {
                 // scorable colliders should be despawned and increment the scoreboard on collision
                 if let Collider::Scorable = *collider {
@@ -327,7 +335,6 @@ fn ball_collision_system(
 
                 break;
             }
-
 
             //The collision logic only considers rectangle intersection not contact so consider contact here
             let a_pos = ball_transform.translation();
